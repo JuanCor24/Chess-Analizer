@@ -1,0 +1,35 @@
+.app {
+  width: 100vw;
+  height: 100vh;
+  background-color: #1e2326;
+}
+
+.app .contenedor_tablero {
+  width: 650px;
+  padding: 30px 90px;
+}
+
+.app .cuadroRegistroPartida {
+  position: absolute;
+  top: 70px;
+  right: 260px;
+  z-index: 10;
+  max-height: 250px;
+  overflow-y: auto;
+  display: block;
+}
+
+.app .cuadroRegistroPartida .tablaajedrez {
+  width: 100%;
+  border-collapse: collapse; /* importante para que los bordes sean compartidos y permitir el scroll*/
+  border-spacing: 0;
+  background-color: #fff;
+}
+
+.output {
+  position: absolute;
+  width: 500px;
+  height: 100px;
+  right: 120px;
+  bottom: 110px;
+}

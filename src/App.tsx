@@ -55,6 +55,7 @@ function App() {
     <div className="app">
       <div className="contenedor_tablero">
         <Chessboard options={chessboardOptions} />
+        <h3>{feedback}</h3>
       </div>
 
       <div className="cuadroRegistroPartida" ref={contenedorRef}>

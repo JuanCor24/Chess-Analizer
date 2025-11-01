@@ -3,14 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://juancor24.github.io/Chess-Analizer/",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d docs/dist"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
+    "gh-pages": "^6.3.0",
     "react": "^19.1.1",
     "react-chessboard": "^5.7.1",
     "react-dom": "^19.1.1"

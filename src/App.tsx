@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { Chessboard } from "react-chessboard";
 import type { ChessboardOptions, PieceDropHandlerArgs } from "react-chessboard";
-import { Chess } from "chess.js";
+import { Chess, type Square } from "chess.js";
 import { useId } from "react";
 import { useEffect, useRef } from "react";
 import "./App.css";
+import StockfishWorker from "./engine/stockfish.js?worker";
 
 function App() {
   const [game, setGame] = useState(new Chess());
-  const [feedback, setFeedback] = useState("");
   const [historial, setHistorial] = useState<string[]>([]);
   const postTextAreaId = useId();
   const contenedorRef = useRef<HTMLDivElement | null>(null);
+  const [evaluacion, setEvaluacion] = useState<string>("—");
+  const engineRef = useRef<Worker | null>(null);
 
   useEffect(() => {
     if (contenedorRef.current) {
@@ -19,29 +21,82 @@ function App() {
     }
   }, [historial]);
 
+  useEffect(() => {
+    const engine = new StockfishWorker();
+    engineRef.current = engine;
+
+    engine.onmessage = (event) => {
+      const line = event.data;
+      console.log("Stockfish:", line);
+
+      if (line.startsWith("info depth")) {
+        const match = line.match(/score (cp|mate) (-?\d+)/);
+        if (match) {
+          const turno = game.turn(); // 'w' o 'b'
+
+          if (match[1] === "cp") {
+            let cp = parseInt(match[2], 10);
+
+            // 🔁 Invertir el signo si le toca al negro
+            if (turno === "b") cp = -cp;
+
+            const score = (cp / 100).toFixed(2);
+            setEvaluacion(`${cp >= 0 ? "+" : ""}${score}`);
+          } else if (match[1] === "mate") {
+            const mate = parseInt(match[2], 10);
+            // Si le toca al negro, invertimos el signo del mate también
+            setEvaluacion(
+              turno === "b" ? `Mate en ${-mate}` : `Mate en ${mate}`
+            );
+          }
+        }
+      }
+    };
+
+    // Inicializar el motor
+    engine.postMessage("uci");
+    engine.postMessage("isready");
+
+    // Analizar la posición actual
+    engine.postMessage(`position fen ${game.fen()}`);
+    engine.postMessage("go depth 15");
+
+    return () => engine.terminate();
+  }, [game.fen()]);
+
+  // Analizar la posición después de cada jugada
+  useEffect(() => {
+    if (engineRef.current) {
+      const fen = game.fen();
+      engineRef.current.postMessage(`position fen ${fen}`);
+      engineRef.current.postMessage("go depth 15");
+    }
+  }, [game]);
+
   const movimiento = ({ sourceSquare, targetSquare }: PieceDropHandlerArgs) => {
     if (!targetSquare) {
-      setFeedback("Movimiento ilegal");
       return false;
     }
 
     const newGame = new Chess(game.fen());
+    const piece = newGame.get(sourceSquare as Square);
+    const isPromotion =
+      piece?.type === "p" &&
+      (targetSquare[1] === "8" || targetSquare[1] === "1");
+
     const jugada = newGame.move({
       from: sourceSquare,
       to: targetSquare,
-      promotion: "q",
+      promotion: isPromotion ? "q" : undefined,
     });
 
     if (!jugada) {
-      setFeedback("Movimiento ilegal");
       return false;
     }
 
     setHistorial((prev) => [...prev, jugada.san]);
 
     setGame(newGame);
-
-    setFeedback(`✅ Jugada válida: ${jugada.san}`);
 
     return true;
   };
@@ -55,11 +110,21 @@ function App() {
     <div className="app">
       <div className="contenedor_tablero">
         <Chessboard options={chessboardOptions} />
-        <h3>{feedback}</h3>
+      </div>
+
+      <div className="indicador" ref={contenedorRef}>
+        <h3>
+          Evaluación:&nbsp;
+          <span
+            className={evaluacion.startsWith("-") ? "negativo" : "positivo"}
+          >
+            {evaluacion}
+          </span>
+        </h3>
       </div>
 
       <div className="cuadroRegistroPartida" ref={contenedorRef}>
-        <h3 style={{ textAlign: "center" }}></h3>
+        <h3 style={{ textAlign: "center" }}>Registro de partida</h3>
         <table className="tablaajedrez">
           <thead>
             <tr>
@@ -70,6 +135,7 @@ function App() {
           </thead>
           <tbody>
             {Array.from({ length: Math.ceil(historial.length / 2) }).map(
+              /* Para calcular cuantas filas se necesitan*/
               (_, i) => (
                 <tr key={i}>
                   <td>{i + 1}.</td>

@@ -9,14 +9,21 @@
   padding: 30px 90px;
 }
 
+.app .indicador {
+  position: absolute;
+  top: 50px;
+  right: 285px;
+  z-index: 20;
+}
+
 .app .cuadroRegistroPartida {
   position: absolute;
-  top: 70px;
-  right: 260px;
+  top: 110px;
+  right: 285px;
   z-index: 10;
-  max-height: 250px;
+  max-height: 290px;
+  background-color: #fff; /* mismo color que la tabla o contenedor */
   overflow-y: auto;
-  display: block;
 }
 
 .app .cuadroRegistroPartida .tablaajedrez {
@@ -26,10 +33,26 @@
   background-color: #fff;
 }
 
+.app .cuadroRegistroPartida th {
+  position: sticky;
+  top: 0;
+  background-color: #fff; /* para que no se vea transparente */
+  z-index: 10; /* encima de las filas */
+  margin: 0;
+  padding: 0.5rem;
+  text-align: center;
+}
+
 .output {
   position: absolute;
   width: 500px;
   height: 100px;
   right: 120px;
-  bottom: 110px;
+  bottom: 100px;
+}
+
+.app .indicador {
+  right: 295px;
+  top: 20px;
+  background-color: #fff;
 }

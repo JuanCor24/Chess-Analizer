@@ -1,7 +1,7 @@
 .app {
   width: 100vw;
   height: 100vh;
-  background-color: #1e2326;
+  background-color: #1d61a0;
 }
 
 .app .contenedor_tablero {
@@ -11,17 +11,18 @@
 
 .app .indicador {
   position: absolute;
-  top: 50px;
-  right: 285px;
-  z-index: 20;
+  padding: 10px 17px;
+  font-size: 20px;
 }
 
 .app .cuadroRegistroPartida {
   position: absolute;
   top: 110px;
-  right: 285px;
+  right: 275px;
   z-index: 10;
   max-height: 290px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   background-color: #fff; /* mismo color que la tabla o contenedor */
   overflow-y: auto;
 }
@@ -29,30 +30,141 @@
 .app .cuadroRegistroPartida .tablaajedrez {
   width: 100%;
   border-collapse: collapse; /* importante para que los bordes sean compartidos y permitir el scroll*/
-  border-spacing: 0;
   background-color: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 0.95rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-.app .cuadroRegistroPartida th {
-  position: sticky;
-  top: 0;
-  background-color: #fff; /* para que no se vea transparente */
-  z-index: 10; /* encima de las filas */
-  margin: 0;
-  padding: 0.5rem;
+.barra-evaluacion {
+  position: absolute;
+  width: 18px;
+  height: 290px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+  right: 180px;
+  top: 110px;
+}
+
+.blancas {
+  background-color: #f0f0f0;
+  transition: height 0.5s ease;
+}
+
+.negras {
+  background-color: #222;
+  transition: height 0.5s ease;
+}
+
+/* encabezado */
+
+.app .cuadroRegistroPartida .tablaajedrez thead {
+  background-color: #f2f4f7;
+  color: #333; /* Fondo gris para el encabezado  */
+  text-transform: uppercase;
+  font-weight: 600; /*   grosor */
+}
+
+.app .cuadroRegistroPartida .tablaajedrez th {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 2px solid #e3e6eb;
+}
+
+.app .cuadroRegistroPartida .tablaajedrez td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 2px solid #e3e6eb;
+}
+
+.app .cuadroRegistroPartida .tablaajedrez tbody tr:nth-child(even) {
+  background-color: #eef3f8; /* Color por defecto en las filas pares */
+}
+
+.app .cuadroRegistroPartida .tablaajedrez tbody tr:hover {
+  background-color: #eef3f8; /* Color cuando se pone encima de la fila */
+  transition: back-color 0.25s ease;
+}
+
+.app .cuadroRegistroPartida .tablaajedrez td:first-child {
+  background-color: #eef3f8; /* primer hijo de td osea el numero */
+  transition: back-color 0.25s ease;
+}
+
+.app .cuadroRegistroPartida .tablaajedrez td:first-child {
+  color: #6b7280;
+  font-weight: 500;
+  width: 40px;
   text-align: center;
 }
 
 .output {
   position: absolute;
-  width: 500px;
+  width: 600px;
   height: 100px;
-  right: 120px;
-  bottom: 100px;
+  padding: 20px 40px;
+  right: 50px;
+  bottom: 50px;
 }
 
 .app .indicador {
   right: 295px;
   top: 20px;
+}
+
+.app .indicador h3 {
+  color: #fff;
+}
+
+.app .listadebotones {
+  position: absolute;
+  right: 200px;
+  top: 450px;
+}
+
+.app .botonEliminar {
+  position: absolute;
+  right: 300px;
+  background-color: #ff0000;
+}
+
+.app .botonEliminar svg {
+  color: #ffffff;
+  font-size: 1.4rem; /* Tamanio del icono */
+}
+
+.app .botonNumero {
+  position: absolute;
+  right: 200px;
   background-color: #fff;
+}
+
+.app .botonNumero svg {
+  color: #4d847b;
+  font-size: 1.4rem; /* Tamanio del icono */
+}
+
+.app .botonNumerodos {
+  position: absolute;
+  right: 100px;
+  background-color: #fff;
+}
+
+.app .botonNumerodos svg {
+  color: #4d847b;
+  font-size: 1.4rem;
+}
+
+.app .botonIdea {
+  position: absolute;
+  right: 0px;
+  background-color: #17e70c;
+}
+
+.app .botonIdea svg {
+  color: #fff;
+  font-size: 1.4rem;
 }

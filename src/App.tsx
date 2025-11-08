@@ -7,6 +7,17 @@ import { useEffect, useRef } from "react";
 import "./App.css";
 import StockfishWorker from "./engine/stockfish.js?worker";
 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { fas } from "@fortawesome/free-solid-svg-icons";
+import { faSquareCaretLeft } from "@fortawesome/free-solid-svg-icons";
+import { faSquareCaretRight } from "@fortawesome/free-solid-svg-icons";
+import { faLightbulb } from "@fortawesome/free-solid-svg-icons";
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
+
+import { library } from "@fortawesome/fontawesome-svg-core"; /* son valores ejecutables en tiempo de ejecucion */
+
+library.add(fas); /* se ejecuta cuando el codigo corre */
+
 function App() {
   const [game, setGame] = useState(new Chess());
   const [historial, setHistorial] = useState<string[]>([]);
@@ -14,6 +25,80 @@ function App() {
   const contenedorRef = useRef<HTMLDivElement | null>(null);
   const [evaluacion, setEvaluacion] = useState<string>("—");
   const engineRef = useRef<Worker | null>(null);
+  const [puedeMover, setPuedeMover] = useState(true);
+
+  const [outputText, setOutputText] = useState(
+    "Pulsa el boton verde para recibir una retroalimentacion de la jugada que acabas de hacer"
+  );
+  const [currentIndex, setCurrentIndex] = useState(historial.length);
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  const handlePost = () => {
+    if (currentIndex + 1 <= historial.length) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  };
+
+  const handleEliminar = () => {
+    if (historial.length === 0) return;
+    const nuevoGame = new Chess();
+    const nuevoHistorial = historial.slice(0, -1);
+    nuevoHistorial.forEach((mov) => nuevoGame.move(mov));
+
+    setHistorial(nuevoHistorial);
+
+    setCurrentIndex((prevIndex) => {
+      return Math.min(prevIndex, nuevoHistorial.length);
+    });
+
+    setGame(nuevoGame);
+  };
+
+  const handleIdea = async () => {};
+
+  interface BarraEvaluacionProps {
+    evaluacion: string;
+  }
+
+  const BarraEvaluacion: React.FC<BarraEvaluacionProps> = ({ evaluacion }) => {
+    const turno = game.turn();
+    let porcentajeBlancas;
+
+    console.log("Valor de evaluación:", turno);
+
+    if (evaluacion[0] == "M" && turno == "b") {
+      porcentajeBlancas = -100;
+    } else if (evaluacion[0] == "M" && turno == "w") {
+      porcentajeBlancas = 100;
+    } else {
+      const valorNumerico = parseFloat(evaluacion.replace(".", ".").trim());
+      porcentajeBlancas = Math.min(Math.max((valorNumerico + 10) * 5, 0), 100);
+    }
+
+    return (
+      <div className="barra-evaluacion">
+        <div
+          className="blancas"
+          style={{ height: `${porcentajeBlancas}%` }}
+        ></div>
+        <div
+          className="negras"
+          style={{ height: `${100 - porcentajeBlancas}%` }}
+        ></div>
+      </div>
+    );
+  };
+
+  useEffect(() => {
+    console.log(currentIndex);
+    console.log(historial.length);
+    setPuedeMover(currentIndex == historial.length || historial.length === 0);
+  }, [currentIndex, historial.length]);
 
   useEffect(() => {
     if (contenedorRef.current) {
@@ -32,39 +117,27 @@ function App() {
       if (line.startsWith("info depth")) {
         const match = line.match(/score (cp|mate) (-?\d+)/);
         if (match) {
-          const turno = game.turn(); // 'w' o 'b'
-
           if (match[1] === "cp") {
             let cp = parseInt(match[2], 10);
-
-            // 🔁 Invertir el signo si le toca al negro
+            const turno = gameToRender.turn();
             if (turno === "b") cp = -cp;
 
             const score = (cp / 100).toFixed(2);
             setEvaluacion(`${cp >= 0 ? "+" : ""}${score}`);
           } else if (match[1] === "mate") {
             const mate = parseInt(match[2], 10);
-            // Si le toca al negro, invertimos el signo del mate también
-            setEvaluacion(
-              turno === "b" ? `Mate en ${-mate}` : `Mate en ${mate}`
-            );
+
+            setEvaluacion(`Mate en ${mate}`);
           }
         }
       }
     };
-
-    // Inicializar el motor
-    engine.postMessage("uci");
-    engine.postMessage("isready");
-
-    // Analizar la posición actual
-    engine.postMessage(`position fen ${game.fen()}`);
-    engine.postMessage("go depth 15");
+    engine.postMessage(`position fen ${gameToRender.fen()}`); //gameToRender es la posicion actual del indice
+    engine.postMessage("go depth 100");
 
     return () => engine.terminate();
-  }, [game.fen()]);
+  }, [currentIndex]); //Depender del indice y no del game.fen() actual
 
-  // Analizar la posición después de cada jugada
   useEffect(() => {
     if (engineRef.current) {
       const fen = game.fen();
@@ -78,7 +151,18 @@ function App() {
       return false;
     }
 
-    const newGame = new Chess(game.fen());
+    if (!puedeMover) {
+      console.log(
+        "⚠️ No puedes mover mientras estás viendo jugadas anteriores"
+      );
+      return false;
+    }
+
+    const newGame = new Chess();
+    for (let i = 0; i < currentIndex; i++) {
+      newGame.move(historial[i]);
+    }
+
     const piece = newGame.get(sourceSquare as Square);
     const isPromotion =
       piece?.type === "p" &&
@@ -94,15 +178,23 @@ function App() {
       return false;
     }
 
-    setHistorial((prev) => [...prev, jugada.san]);
+    setHistorial((prev) => {
+      const newHistorial = prev.slice(0, currentIndex);
+      return [...newHistorial, jugada.san];
+    });
+
+    setCurrentIndex((prev) => currentIndex + 1); // nunca más allá del historial
 
     setGame(newGame);
 
     return true;
   };
 
+  const gameToRender = new Chess();
+  historial.slice(0, currentIndex).forEach((mov) => gameToRender.move(mov));
+
   const chessboardOptions: ChessboardOptions = {
-    position: game.fen(),
+    position: gameToRender.fen(),
     onPieceDrop: movimiento,
   };
 
@@ -152,10 +244,29 @@ function App() {
       <textarea
         id={postTextAreaId}
         name="postContent"
-        rows={4}
-        cols={40}
+        rows={10}
+        cols={60}
         className="output"
+        readOnly
+        value={outputText}
       />
+
+      <BarraEvaluacion evaluacion={evaluacion} />
+
+      <div className="listadebotones">
+        <button className="botonEliminar" onClick={handleEliminar}>
+          <FontAwesomeIcon icon={faXmark} />
+        </button>
+        <button className="botonNumero" onClick={handlePrev}>
+          <FontAwesomeIcon icon={faSquareCaretLeft} />
+        </button>
+        <button className="botonNumerodos" onClick={handlePost}>
+          <FontAwesomeIcon icon={faSquareCaretRight} />
+        </button>
+        <button className="botonIdea" onClick={handleIdea}>
+          <FontAwesomeIcon icon={faLightbulb} />
+        </button>
+      </div>
     </div>
   );
 }

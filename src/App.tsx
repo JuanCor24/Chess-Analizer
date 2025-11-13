@@ -5,6 +5,7 @@ import { Chess, type Square } from "chess.js";
 import { useId } from "react";
 import { useEffect, useRef } from "react";
 import "./App.css";
+
 import StockfishWorker from "./engine/stockfish.js?worker";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -38,6 +39,26 @@ function App() {
     }
   };
 
+  const handleIdea = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/evaluar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          posicion: game.fen(),
+          jugada: historial[historial.length - 1],
+          evaluacion: evaluacion,
+        }),
+      });
+
+      const data = await response.json();
+      setOutputText(data.mensaje);
+    } catch (error) {
+      console.error("Error consultando la IA:", error);
+      setOutputText("❌ Error al obtener la explicación de la IA");
+    }
+  };
+
   const handlePost = () => {
     if (currentIndex + 1 <= historial.length) {
       setCurrentIndex(currentIndex + 1);
@@ -58,8 +79,6 @@ function App() {
 
     setGame(nuevoGame);
   };
-
-  const handleIdea = async () => {};
 
   interface BarraEvaluacionProps {
     evaluacion: string;
@@ -134,6 +153,7 @@ function App() {
     };
     engine.postMessage(`position fen ${gameToRender.fen()}`); //gameToRender es la posicion actual del indice
     engine.postMessage("go depth 100");
+    console.log("no me gusta", evaluacion);
 
     return () => engine.terminate();
   }, [currentIndex]); //Depender del indice y no del game.fen() actual

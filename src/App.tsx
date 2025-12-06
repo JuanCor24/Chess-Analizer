@@ -27,6 +27,9 @@ function App() {
   const [evaluacion, setEvaluacion] = useState<string>("—");
   const engineRef = useRef<Worker | null>(null);
   const [puedeMover, setPuedeMover] = useState(true);
+  const [mejorJugada, setMejorJugada] = useState<string>("");
+
+  const stockfish = new StockfishWorker();
 
   const [outputText, setOutputText] = useState(
     "Pulsa el boton verde para recibir una retroalimentacion de la jugada que acabas de hacer"
@@ -39,15 +42,36 @@ function App() {
     }
   };
 
+  const obtenerMejorJugada = (fen: string): Promise<string> => {
+    return new Promise((resolve) => {
+      stockfish.onmessage = (event) => {
+        const line = event.data;
+        if (line.startsWith("bestmove")) {
+          const move = line.split(" ")[1];
+          resolve(move);
+        }
+      };
+
+      stockfish.postMessage("uci");
+      stockfish.postMessage(`position fen ${fen}`);
+      stockfish.postMessage("go depth 15");
+    });
+  };
+
   const handleIdea = async () => {
+    console.log("Historial:", historial);
+    const jugadaStockfish = await obtenerMejorJugada(game.fen());
+    console.log("Mejor jugada según Stockfish:", jugadaStockfish);
     try {
       const response = await fetch("http://localhost:5000/evaluar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           posicion: game.fen(),
-          jugada: historial[historial.length - 1],
-          evaluacion: evaluacion,
+          jugada: historial[historial.length - 1] || "VACÍA",
+          evaluacion: evaluacion || "VACÍA",
+          historial: historial.length > 0 ? historial : "VACÍO",
+          mejorJugada: jugadaStockfish || "VACÍA", //Primero el nombre para poner el backend y despues la variable usada en la funcion
         }),
       });
 
@@ -88,8 +112,6 @@ function App() {
     const turno = game.turn();
     let porcentajeBlancas;
 
-    console.log("Valor de evaluación:", turno);
-
     if (evaluacion[0] == "M" && turno == "b") {
       porcentajeBlancas = -100;
     } else if (evaluacion[0] == "M" && turno == "w") {
@@ -128,6 +150,8 @@ function App() {
   useEffect(() => {
     const engine = new StockfishWorker();
     engineRef.current = engine;
+    const fen = game.fen();
+    console.log("Fen:", fen);
 
     engine.onmessage = (event) => {
       const line = event.data;
@@ -139,10 +163,12 @@ function App() {
           if (match[1] === "cp") {
             let cp = parseInt(match[2], 10);
             const turno = gameToRender.turn();
-            if (turno === "b") cp = -cp;
+            if (turno === "b") {
+              cp = -cp;
+            }
 
             const score = (cp / 100).toFixed(2);
-            setEvaluacion(`${cp >= 0 ? "+" : ""}${score}`);
+            setEvaluacion(`${score}`);
           } else if (match[1] === "mate") {
             const mate = parseInt(match[2], 10);
 
@@ -152,7 +178,7 @@ function App() {
       }
     };
     engine.postMessage(`position fen ${gameToRender.fen()}`); //gameToRender es la posicion actual del indice
-    engine.postMessage("go depth 100");
+    engine.postMessage("go depth 200");
     console.log("no me gusta", evaluacion);
 
     return () => engine.terminate();
@@ -162,7 +188,7 @@ function App() {
     if (engineRef.current) {
       const fen = game.fen();
       engineRef.current.postMessage(`position fen ${fen}`);
-      engineRef.current.postMessage("go depth 15");
+      engineRef.current.postMessage("go depth 200");
     }
   }, [game]);
 

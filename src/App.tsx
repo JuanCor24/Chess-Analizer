@@ -27,7 +27,7 @@ function App() {
   const [evaluacion, setEvaluacion] = useState<string>("—");
   const engineRef = useRef<Worker | null>(null);
   const [puedeMover, setPuedeMover] = useState(true);
-  const [mejorJugada, setMejorJugada] = useState<string>("");
+  const [cargando, setCargando] = useState(false);
 
   const stockfish = new StockfishWorker();
 
@@ -59,9 +59,10 @@ function App() {
   };
 
   const handleIdea = async () => {
-    console.log("Historial:", historial);
+    setCargando(true);
+    setOutputText("⌛ Analizando la posición… por favor espera.");
     const jugadaStockfish = await obtenerMejorJugada(game.fen());
-    console.log("Mejor jugada según Stockfish:", jugadaStockfish);
+
     try {
       const response = await fetch("http://localhost:5000/evaluar", {
         method: "POST",
@@ -77,9 +78,25 @@ function App() {
 
       const data = await response.json();
       setOutputText(data.mensaje);
-    } catch (error) {
-      console.error("Error consultando la IA:", error);
-      setOutputText("❌ Error al obtener la explicación de la IA");
+    } catch (error: unknown) {
+      console.error("Error en la IA:", error);
+
+      if (typeof error === "object" && error !== null && "status" in error) {
+        const e = error as { status: number; message?: string };
+        if (e.status === 429) {
+          setOutputText(
+            "⚠️ Cuota diaria de la IA alcanzada. Intenta más tarde."
+          );
+        } else {
+          setOutputText(
+            `❌ Error al obtener la explicación de la IA: ${e.message}`
+          );
+        }
+      } else {
+        setOutputText(
+          "❌ Error desconocido al obtener la explicación de la IA"
+        );
+      }
     }
   };
 
@@ -178,7 +195,7 @@ function App() {
       }
     };
     engine.postMessage(`position fen ${gameToRender.fen()}`); //gameToRender es la posicion actual del indice
-    engine.postMessage("go depth 200");
+    engine.postMessage("go depth 50");
     console.log("no me gusta", evaluacion);
 
     return () => engine.terminate();
@@ -188,7 +205,7 @@ function App() {
     if (engineRef.current) {
       const fen = game.fen();
       engineRef.current.postMessage(`position fen ${fen}`);
-      engineRef.current.postMessage("go depth 200");
+      engineRef.current.postMessage("go depth 50");
     }
   }, [game]);
 
@@ -250,17 +267,6 @@ function App() {
         <Chessboard options={chessboardOptions} />
       </div>
 
-      <div className="indicador" ref={contenedorRef}>
-        <h3>
-          Evaluación:&nbsp;
-          <span
-            className={evaluacion.startsWith("-") ? "negativo" : "positivo"}
-          >
-            {evaluacion}
-          </span>
-        </h3>
-      </div>
-
       <div className="cuadroRegistroPartida" ref={contenedorRef}>
         <h3 style={{ textAlign: "center" }}>Registro de partida</h3>
         <table className="tablaajedrez">
@@ -309,7 +315,16 @@ function App() {
         <button className="botonNumerodos" onClick={handlePost}>
           <FontAwesomeIcon icon={faSquareCaretRight} />
         </button>
-        <button className="botonIdea" onClick={handleIdea}>
+        <button
+          className="botonIdea"
+          onClick={handleIdea}
+          disabled={currentIndex !== historial.length}
+          style={{
+            opacity: currentIndex === historial.length ? 1 : 0.4,
+            cursor:
+              currentIndex === historial.length ? "pointer" : "not-allowed",
+          }}
+        >
           <FontAwesomeIcon icon={faLightbulb} />
         </button>
       </div>

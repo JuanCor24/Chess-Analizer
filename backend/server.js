@@ -12,6 +12,26 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const mapTipo = {
+  n: "knight",
+  b: "bishop",
+  p: "pawn",
+  r: "rook",
+  q: "queen",
+  k: "king",
+  N: "knight",
+  B: "bishop",
+  P: "pawn",
+  R: "rook",
+  Q: "queen",
+  K: "king",
+};
+
+const mapColor = {
+  b: "black",
+  w: "white",
+};
+
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
   console.error("No se encontró GEMINI_API_KEY en .env");
@@ -136,9 +156,10 @@ function analizarFEN(fen) {
           ataques[desde].push({
             desde,
             hasta,
-            pieza_atacada: target.type,
-            color_pieza_que_ataca: piece.color,
-            colorpiezatacada: target.color,
+            pieza_atacada: mapTipo[target.type] || target.type,
+            color_pieza_que_ataca: mapColor[piece.color] || piece.color,
+            color_pieza_atacada: mapColor[target.color] || piece.color,
+            tipo_de_pieza_que_ataca: mapTipo[piece.type] || target.type,
           });
         }
       }
@@ -153,8 +174,9 @@ function analizarFEN(fen) {
           defensas[square].push({
             desde: square,
             defiende: destino,
-            pieza_defendida: target.type,
-            colorpiezas: target.color,
+            pieza_que_defiende: mapTipo[piece.type] || target.type,
+            pieza_defendida: mapTipo[target.type] || target.type,
+            colorpiezas: mapColor[target.color] || target.color,
           });
         }
       });
@@ -197,11 +219,6 @@ app.post("/evaluar", async (req, res) => {
 
     console.log(`Culito fino:  ${JSON.stringify(defensas, null, 2)}`, defensas);
 
-    console.log(
-      `Culito fino:  ${legales.map((m) => m.san).join(", ")}`,
-      legales
-    );
-
     const prompt = `Analiza la posición en FEN: ${posicion}
 Turno: ${color}
 Historial: ${historial}
@@ -229,13 +246,15 @@ REGLAS IMPORTANTES (CÚMPLELAS ESTRICTAMENTE):
 5. NO asumas peones invisibles, NO asumas piezas “en su casilla inicial”, 
    NO asumas jugadas previas más allá del FEN.
 6. Si una amenaza NO existe, dilo explícitamente.
+7. Todo tu texto debe estar escrito con un formato claro y facil de entender (como el texto de un cuento).
 
 FORMATO DE RESPUESTA:
 1. Dependiendo de las jugadas disponibles para el bando que le toca jugar y la ventaja que da la maquina 
-¿La ultima jugada hecha es buena, mala o aceptable?
-2. Explicación de la clasificacion de la ultima jugada basado en los ataques,defensas y jugadas legales descritas 
-anteriormente en lo que puede hacer el bando que tiene el turno teniendo en cuenta conceptos basicos del ajedrez.
-3. Idea estratégica detrás de la mejor jugada según los ataques/defensas reales actuales.
+¿La ultima jugada hecha es buena, mala o aceptable? 
+2. Dame una Explicación de la clasificacion de la ultima jugada basado en los ataques,defensas y jugadas legales 
+descritas anteriormente teniendo en cuenta conceptos basicos del ajedrez.
+3. Idea estratégica y posibles planes detrás de la posicion actual segun  basado en los ataques,defensas y jugadas legales 
+descritas anteriormente.
 
 
 FORMATO:

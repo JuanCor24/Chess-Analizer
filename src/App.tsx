@@ -3,7 +3,7 @@ import { Chessboard } from "react-chessboard";
 import type { ChessboardOptions, PieceDropHandlerArgs } from "react-chessboard";
 import { Chess, type Square } from "chess.js";
 import { useId } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import "./App.css";
 
 import StockfishWorker from "./engine/stockfish.js?worker";
@@ -29,8 +29,6 @@ function App() {
   const [puedeMover, setPuedeMover] = useState(true);
   const [cargando, setCargando] = useState(false);
 
-  const stockfish = new StockfishWorker();
-
   const [outputText, setOutputText] = useState(
     "Pulsa el boton verde para recibir una retroalimentacion de la jugada que acabas de hacer"
   );
@@ -44,17 +42,23 @@ function App() {
 
   const obtenerMejorJugada = (fen: string): Promise<string> => {
     return new Promise((resolve) => {
-      stockfish.onmessage = (event) => {
+      const engine = engineRef.current;
+      if (!engine) return resolve("VACÍA");
+
+      const handleMessage = (event: MessageEvent) => {
         const line = event.data;
         if (line.startsWith("bestmove")) {
           const move = line.split(" ")[1];
+          engine.removeEventListener("message", handleMessage); // removemos listener
           resolve(move);
         }
       };
 
-      stockfish.postMessage("uci");
-      stockfish.postMessage(`position fen ${fen}`);
-      stockfish.postMessage("go depth 15");
+      engine.addEventListener("message", handleMessage);
+
+      engine.postMessage("uci");
+      engine.postMessage(`position fen ${fen}`);
+      engine.postMessage("go depth 15");
     });
   };
 
@@ -164,48 +168,57 @@ function App() {
     }
   }, [historial]);
 
-  useEffect(() => {
-    const engine = new StockfishWorker();
-    engineRef.current = engine;
-    const fen = game.fen();
-    console.log("Fen:", fen);
+  const gameToRender = useMemo(() => {
+    const g = new Chess();
+    historial.slice(0, currentIndex).forEach((mov) => g.move(mov));
+    return g;
+  }, [historial, currentIndex]);
 
-    engine.onmessage = (event) => {
-      const line = event.data;
-      console.log("Stockfish:", line);
+  if (!engineRef.current) {
+    engineRef.current = new StockfishWorker();
+    engineRef.current.postMessage("uci");
+  }
 
-      if (line.startsWith("info depth")) {
-        const match = line.match(/score (cp|mate) (-?\d+)/);
-        if (match) {
-          if (match[1] === "cp") {
-            let cp = parseInt(match[2], 10);
-            const turno = gameToRender.turn();
-            if (turno === "b") {
-              cp = -cp;
-            }
+  const engine = engineRef.current;
+  const fen = gameToRender.fen();
 
-            const score = (cp / 100).toFixed(2);
-            setEvaluacion(`${score}`);
-          } else if (match[1] === "mate") {
-            const mate = parseInt(match[2], 10);
+  engine.onmessage = (event) => {
+    const line = event.data;
+    console.log("Stockfish:", line);
 
-            setEvaluacion(`Mate en ${mate}`);
-          }
-        }
+    if (!line.startsWith("info")) return;
+
+    const match = line.match(/score (cp|mate) (-?\d+)/);
+
+    console.log("Evaluacion: ", match);
+
+    if (!match) return;
+
+    if (match[1] === "cp") {
+      let cp = parseInt(match[2], 10);
+      console.log("intencional", cp);
+      if (gameToRender.turn() === "b") {
+        cp = -cp;
       }
-    };
-    engine.postMessage(`position fen ${gameToRender.fen()}`); //gameToRender es la posicion actual del indice
-    engine.postMessage("go depth 50");
-    console.log("no me gusta", evaluacion);
 
-    return () => engine.terminate();
-  }, [currentIndex]); //Depender del indice y no del game.fen() actual
+      setEvaluacion((cp / 100).toFixed(2));
+    } else {
+      setEvaluacion(`Mate en ${match[2]}`);
+    }
+  };
+
+  engine.postMessage("stop");
+
+  engine.postMessage(`position fen ${fen}`);
+
+  engine.postMessage("go depth 12");
 
   useEffect(() => {
     if (engineRef.current) {
       const fen = game.fen();
+
       engineRef.current.postMessage(`position fen ${fen}`);
-      engineRef.current.postMessage("go depth 50");
+      engineRef.current.postMessage("go depth 12");
     }
   }, [game]);
 
@@ -252,9 +265,6 @@ function App() {
 
     return true;
   };
-
-  const gameToRender = new Chess();
-  historial.slice(0, currentIndex).forEach((mov) => gameToRender.move(mov));
 
   const chessboardOptions: ChessboardOptions = {
     position: gameToRender.fen(),

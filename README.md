@@ -1,4 +1,10 @@
+Esta aplicacion te ayudará a entender tus partidas de ajedrez y el transfondo de cada jugada
 #<img width="1918" height="907" alt="Analizador de ajedrez" src="https://github.com/user-attachments/assets/ce9de2e1-c46d-4bb4-8d99-916a962b2b3a" />
+
+Explicacion de cada jugada con su respectiva valoracion
+<img width="877" height="403" alt="Analizador de ajedrezs" src="https://github.com/user-attachments/assets/35ff578e-287d-4f0f-80dc-1bfc7f1cda41" />
+
+
  React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
